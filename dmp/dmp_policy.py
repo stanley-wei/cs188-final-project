@@ -21,9 +21,9 @@ class DMPPolicyWithPID:
         dt (float): control timestep.
         n_bfs (int): number of basis functions per DMP.
     """
-    def __init__(self, square_pos, square_quat, robot_pos, robot_quat, demo_path='final_project_default_data/demos.npz', dt=0.01, n_bfs=30, debug=False):
+    def __init__(self, square_pos, square_quat, robot_pos, robot_quat, demo_path='final_project_default_data/demos.npz', dt=0.02, n_bfs=40, debug=False):
         self.dt = dt
-        demo = self.find_nearest_demo(square_quat, demo_path)
+        demo = self.find_nearest_demo(square_pos, square_quat, demo_path)
 
         # Extract trajectories and grasp
         ee_pos = demo['obs_robot0_eef_pos']  # (T,3)
@@ -43,7 +43,7 @@ class DMPPolicyWithPID:
         new_obj_pos = square_pos                
         new_obj_rot = R.from_quat(square_quat)
         
-        new_goal_pos = new_obj_pos + offset
+        new_goal_pos = new_obj_pos + offset - np.asarray([0, 0, 0.001])
         new_goal_rot = ee_rot[end-1].as_quat()
         
         self.trajectories = []
@@ -53,7 +53,7 @@ class DMPPolicyWithPID:
             traj_position = ee_pos[segments[i][0]:segments[i][1]-1]
             traj_orientation = np.asarray([q.as_quat() for q in ee_rot[start:end-1]])
             
-            dmp = CartesianDMP(n_bfs=n_bfs, dt=dt, az=25.0, bz=1.0)
+            dmp = CartesianDMP(n_bfs=n_bfs, dt=dt, az=25.0, bz=4.0)
             dmp.imitate(traj_position, traj_orientation)
             
             if i==0:
@@ -67,30 +67,30 @@ class DMPPolicyWithPID:
             trajectory_q = q_rollout
             self.trajectories.append(np.concatenate((trajectory_p, trajectory_q), axis=1))
 
-        self.kp = 10
-        self.ki = 15
-        self.kd = 0.1
+        self.kp = 15
+        self.ki = 25
+        self.kd = 0
         
-        self.r_kp = 1.0
-        self.r_ki = 0.4
+        self.r_kp = 1
+        self.r_ki = 0.2
         self.r_kd = 0.1
 
-        self.p_controller = PID(self.kp, self.ki, self.kd, self.trajectories[0][0][:3])
-        self.q_controller = RotationPID(self.r_kp, self.r_ki, self.r_kd, self.trajectories[0][0][3:])
+        self.p_controller = PID(self.kp, self.ki, self.kd, robot_pos)
+        self.q_controller = RotationPID(self.r_kp, self.r_ki, self.r_kd, robot_quat)
                 
         self.current_segment = 0
         self.traj_index = 0
         self.grasp = ee_grasp[0]
         
-        self.thresh_p = [0.003, 0.01, 0.01]
-        self.thresh_q = [0.05, 0.05, 0.05]
+        self.thresh_p = [0.005, 0.005, 0.02]
+        self.thresh_q = [0.1, 0.1, 0.2]
         self.stuck_counter = 0
         self.transition_timer = datetime.datetime.now()
         
         self.debug = debug
         
 
-    def find_nearest_demo(self, square_quat, demo_path):
+    def find_nearest_demo(self, square_pos, square_quat, demo_path):
         try:
             flat_data = np.load(demo_path)
             demos = defaultdict(lambda: {})  # demo_id -> { field_path: data }
@@ -107,8 +107,13 @@ class DMPPolicyWithPID:
             exit(1)
 
         square_q = R.from_quat(square_quat)
-        errors = np.asarray([(R.from_quat(demos[key]['obs_object'][0][3:7]) * square_q.inv()).magnitude() for key in demos.keys()])
+
+        pos_errors = np.asarray([np.linalg.norm(demos[key]['obs_object'][0][:3] - square_pos) for key in demos.keys()])
+        rot_errors = np.asarray([(R.from_quat(demos[key]['obs_object'][0][3:7]) * square_q.inv()).magnitude() for key in demos.keys()])
+
+        errors = rot_errors
         min_idx = np.argmin(errors)
+
         return demos[f'demo_{min_idx}']
 
     
@@ -170,11 +175,11 @@ class DMPPolicyWithPID:
         # Finished all trajectories
         if self.current_segment == len(self.trajectories):
             action = np.zeros((8))
-            action[6] = self.grasp
+            action[6] = -1
             action[7] = 1
             return action    
   
-        while True:    
+        while True:
             goal = self.trajectories[self.current_segment][self.traj_index]
             
             p_target_reached = np.linalg.norm(goal[:3] - robot_eef_pos) < self.thresh_p[self.current_segment]
@@ -183,7 +188,7 @@ class DMPPolicyWithPID:
             if self.debug:
                 print(f'{self.current_segment} {self.traj_index}:\t{p_target_reached}\t{q_target_reached}\t{np.concatenate((robot_eef_pos,self.quat_to_rpy(robot_eef_quat)))}\t{goal}')
             
-            if (p_target_reached and q_target_reached) or self.stuck_counter > 40:
+            if (p_target_reached and q_target_reached) or (self.stuck_counter > 35):
                 self.traj_index += 1
                 self.stuck_counter = 0
                 
@@ -209,10 +214,10 @@ class DMPPolicyWithPID:
                 continue
             else:
                 self.stuck_counter += 1
+                break
 
-            update = self.p_controller.update(robot_eef_pos, self.dt)
-            rot_update = self.q_controller.update(robot_eef_quat, self.dt)
-            break
+        update = self.p_controller.update(robot_eef_pos, self.dt)
+        rot_update = self.q_controller.update(robot_eef_quat, self.dt)
         
         action = np.zeros((8))
         action[0:3] = update

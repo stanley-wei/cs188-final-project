@@ -16,17 +16,20 @@ env = suite.make(
     camera_names=["agentview"],
 )
 
+num_trials = 50
 success_rate = 0
+file = open('times.csv', 'a')
 # reset the environment
-for _ in range(5):
+for _ in range(num_trials):
     obs = env.reset()
     policy = DMPPolicyWithPID(obs['SquareNut_pos'], obs['SquareNut_quat'], obs['robot0_eef_pos'], obs['robot0_eef_quat'], debug=True)
 
     time = datetime.datetime.now()
+    success = False
     for _ in range(2500):
         action = policy.get_action(obs['robot0_eef_pos'], obs['robot0_eef_quat'])
         if action[-1] == 1: # stop early if the robot has completed all trajectories
-            if (datetime.datetime.now() - time).total_seconds() > 1:
+            if (datetime.datetime.now() - time).total_seconds() > 2:
                 break
         else:
             time = datetime.datetime.now()
@@ -34,8 +37,12 @@ for _ in range(5):
         env.render()  # render on display
         if reward == 1.0:
             success_rate += 1
+            success = True
             print('success')
             break
+    
+    if success:
+        file.write(str((datetime.datetime.now() - time).total_seconds()))
 
-success_rate /= 5.0
+success_rate /= num_trials
 print('success rate:', success_rate)

@@ -188,8 +188,8 @@ class CartesianDMP:
         phases = self.cs.rollout(tau)
         timesteps = np.arange(0, self.run_time, self.dt)
 
-        x_rollout = np.zeros((timesteps.shape[0], 3))
-        R_rollout = np.zeros((timesteps.shape[0], 3, 3))
+        x_rollout = np.zeros((timesteps.shape[0]+1, 3))
+        R_rollout = np.zeros((timesteps.shape[0]+1, 3, 3))
         
         x = x0
         dx = np.zeros(3)
@@ -206,7 +206,7 @@ class CartesianDMP:
         Dp = np.diag(goal_x - x)
         Do = np.diag(utils.log_so3(goal_R @ R_mat.transpose()))    
            
-        for i in range(1, timesteps.shape[0]):
+        for i in range(0, timesteps.shape[0]):
             ddx = self.az * (self.bz * (goal_x - x) - dx) + self._force_p(phases[i-1], Dp)
             dx += self.dt * ddx / tau
             x += self.dt * dx / tau
@@ -215,9 +215,11 @@ class CartesianDMP:
             eta += self.dt * deta / tau
             R_mat = linalg.expm(self.dt * utils.to_cross_matrix(eta) / tau) @ R_mat
             
-            x_rollout[i] = x
-            R_rollout[i] = R_mat
+            x_rollout[i+1] = x
+            R_rollout[i+1] = R_mat
         
-        q_rollout = R.from_matrix(R_rollout).as_quat()
+        x_rollout = np.concatenate((x_rollout, [goal_x]))
+        q_rollout = np.concatenate((R.from_matrix(R_rollout).as_quat(), [goal_q]))
+
         return x_rollout, q_rollout
         

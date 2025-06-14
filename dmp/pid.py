@@ -107,6 +107,12 @@ class RotationPID:
         """
         return self.last_error_magnitude
 
+    def clamp_angle(self, theta):
+        for i in range(3):
+            while np.abs(theta[i]) > np.pi:
+                theta[i] = np.sign(-theta[i]) * 2 * np.pi + theta[i]
+        return theta
+
     def update(self, current_pos, dt=0.02):
         """
         Compute the PID control signal.
@@ -120,10 +126,7 @@ class RotationPID:
         """
         current_pos = R.from_quat(current_pos).as_euler('xyz')
         
-        error = self.target - current_pos
-        for i in range(3):
-            while np.abs(error[i]) > np.pi:
-                error[i] = np.sign(-error[i]) * 2 * np.pi + error[i]
+        error = self.clamp_angle(self.target - current_pos)
         
         self.last_error_magnitude = np.linalg.norm(error)
 
