@@ -1,5 +1,7 @@
 # CS 188 Final Project
 
+**Group**: Stanley Wei & Ryu Adams
+
 For our final project for UCLA's COM SCI 188: Introduction to Robotics course, we implemented two methods for imitation learning from expert demonstrations:
 
 1. DMP: Cartesian-space dynamic motion primitives.
