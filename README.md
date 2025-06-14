@@ -10,7 +10,7 @@ Evaluated on the robosuite Nut Assembly task:
 | Method | Training Time | Success Rate | Avg. Time
 | -------- | ------- | ------- | ------- | 
 | DMP  | 378 ms. (1 demo.) | 0.76 | 6.389 sec.
-| NN | 3.2 min (200 demos) | 0.76 | 3.481 sec.
+| NN | 3.2 min (200 demos) | 0.72 | 3.481 sec.
 
 You can see our project website here: https://sites.google.com/g.ucla.edu/stanley-ryu-cs188-project
 
