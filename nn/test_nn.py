@@ -1,3 +1,4 @@
+import datetime
 import numpy as np
 import robosuite as suite
 from bc_policy import BCPolicy
@@ -30,20 +31,30 @@ env = suite.make(
 
 success_rate = 0
 trials = 50
+file = open('times.csv', 'a')
 # reset the environment
 for _ in range(trials):
     obs = env.reset()
     policy = BCPolicy('best_bc_model.pt')
     
-    for i in range(2500):
+    time = datetime.datetime.now()
+    success = False
+    for i in range(1000):
         action = policy.get_action(obs)
-        
         obs, reward, done, info = env.step(action)  # take action in the environment
         env.render()  # render on display
+        
         if reward == 1.0:
             success_rate += 1
-
+            success = True
+            completion_time = (datetime.datetime.now() - time).total_seconds()
+            print('completion time:', completion_time)
             break
-success_rate /= float(trials)
+        
+    if success:
+        file.write(str(completion_time) + '\n')
+    
+success_rate /= trials
 print('success rate:', success_rate)
+file.close()
 
