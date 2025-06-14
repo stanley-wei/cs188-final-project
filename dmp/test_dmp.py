@@ -18,11 +18,11 @@ env = suite.make(
 
 num_trials = 50
 success_rate = 0
-file = open('times.csv', 'a')
+file = open('times_old.csv', 'a')
 # reset the environment
 for _ in range(num_trials):
     obs = env.reset()
-    policy = DMPPolicyWithPID(obs['SquareNut_pos'], obs['SquareNut_quat'], obs['robot0_eef_pos'], obs['robot0_eef_quat'], debug=True)
+    policy = DMPPolicyWithPID(obs['SquareNut_pos'], obs['SquareNut_quat'], obs['robot0_eef_pos'], obs['robot0_eef_quat'], debug=False)
 
     time = datetime.datetime.now()
     success = False
@@ -42,7 +42,7 @@ for _ in range(num_trials):
             break
     
     if success:
-        file.write(str((datetime.datetime.now() - time).total_seconds()))
+        file.write(str((datetime.datetime.now() - time).total_seconds()) + "\n")
 
 success_rate /= num_trials
 print('success rate:', success_rate)

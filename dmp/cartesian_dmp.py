@@ -205,7 +205,7 @@ class CartesianDMP:
         goal_R = R.from_quat(goal_q).as_matrix()
         Dp = np.diag(goal_x - x)
         Do = np.diag(utils.log_so3(goal_R @ R_mat.transpose()))    
-           
+
         for i in range(0, timesteps.shape[0]):
             ddx = self.az * (self.bz * (goal_x - x) - dx) + self._force_p(phases[i-1], Dp)
             dx += self.dt * ddx / tau
