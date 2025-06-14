@@ -1,4 +1,5 @@
 # CS 188 Final Project
+![nut_assembly.png](https://github.com/stanley-wei/cs188-final-project/blob/main/nut_assembly.png?raw=true)
 
 **Group**: Stanley Wei & Ryu Adams
 
